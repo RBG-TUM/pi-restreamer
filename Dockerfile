@@ -126,9 +126,12 @@ RUN rm -rf /var/cache/* /tmp/*
 FROM alpine:3.13
 LABEL MAINTAINER Alfred Gutierrez <alf.g.jr@gmail.com>
 
+WORKDIR /app
+
 # Set default ports.
 ENV RTMP_PORT 1935
 
+# todo: build usbreset staged
 RUN apk add --update \
   ca-certificates \
   gettext \
@@ -146,20 +149,25 @@ RUN apk add --update \
   rtmpdump \
   x264-dev \
   x265-dev \
-  v4l2loopback-dkms \
-  v4l2loopback-source \
-  v4l2loopback-utils
-
-RUN modprobe v4l2loopback
+  v4l-utils \
+  gcc \
+  libc-dev \
+  libgcc \
+  linux-headers \
+  make
 
 COPY --from=build-nginx /usr/local/nginx /usr/local/nginx
 COPY --from=build-nginx /etc/nginx /etc/nginx
 COPY --from=build-ffmpeg /usr/local /usr/local
 COPY --from=build-ffmpeg /usr/lib/libfdk-aac.so.2 /usr/lib/libfdk-aac.so.2
 
-COPY usbreset .
-RUN cd usbreset
+ADD usbreset usbreset
+WORKDIR /app/usbreset
 RUN make && make install
+
+WORKDIR /app
+ADD stream.sh stream.sh
+RUN ls
 
 # Add NGINX path, config and static files.
 ENV PATH "${PATH}:/usr/local/nginx/sbin"
@@ -169,4 +177,4 @@ EXPOSE 1935
 
 CMD envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < \
   /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && \
-  nginx
+  nginx & /app/stream.sh
