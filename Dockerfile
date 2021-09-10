@@ -127,8 +127,6 @@ FROM alpine:3.13
 LABEL MAINTAINER Alfred Gutierrez <alf.g.jr@gmail.com>
 
 # Set default ports.
-ENV HTTP_PORT 80
-ENV HTTPS_PORT 443
 ENV RTMP_PORT 1935
 
 RUN apk add --update \
@@ -147,21 +145,27 @@ RUN apk add --update \
   opus \
   rtmpdump \
   x264-dev \
-  x265-dev
+  x265-dev \
+  v4l2loopback-dkms \
+  v4l2loopback-source \
+  v4l2loopback-utils
+
+RUN modprobe v4l2loopback
 
 COPY --from=build-nginx /usr/local/nginx /usr/local/nginx
 COPY --from=build-nginx /etc/nginx /etc/nginx
 COPY --from=build-ffmpeg /usr/local /usr/local
 COPY --from=build-ffmpeg /usr/lib/libfdk-aac.so.2 /usr/lib/libfdk-aac.so.2
 
+COPY usbreset .
+RUN cd usbreset
+RUN make && make install
+
 # Add NGINX path, config and static files.
 ENV PATH "${PATH}:/usr/local/nginx/sbin"
 ADD nginx.conf /etc/nginx/nginx.conf.template
-RUN mkdir -p /opt/data && mkdir /www
-ADD static /www/static
 
 EXPOSE 1935
-EXPOSE 80
 
 CMD envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < \
   /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && \

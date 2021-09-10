@@ -2,10 +2,11 @@ version: '3'
 
 services:
   nginx-rtmp:
+    privileged: true
     build: .
     ports:
       - 1935:1935
     environment:
       - RTMP_PORT=1935
     volumes:
-      - /dev/:/opt/dev
+      - /dev:/dev
